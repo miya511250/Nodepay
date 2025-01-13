@@ -5,7 +5,6 @@ import time
 import uuid
 from curl_cffi import requests
 from loguru import logger
-from fake_useragent import UserAgent
 from colorama import Fore, Style, init
 
 # Constants
@@ -52,15 +51,22 @@ async def render_profile_info(proxy, token):
         np_session_info = load_session_info(proxy)
 
         if not np_session_info:
-            # Generate new browser_id
             browser_id = uuidv4()
             response = await call_api(DOMAIN_API["SESSION"], {}, proxy, token)
+            logger.debug(f"API Response: {response}")
             valid_resp(response)
-            account_info = response["data"]
-            if account_info.get("uid"):
-                save_session_info(proxy, account_info)
-                await start_ping(proxy, token)
+            
+            if response and "data" in response and response["data"]:
+                account_info = response["data"]
+                logger.debug(f"Account Info: {account_info}")
+                if account_info.get("uid"):
+                    save_session_info(proxy, account_info)
+                    await start_ping(proxy, token)
+                else:
+                    logger.error(f"No UID found in account info: {account_info}")
+                    handle_logout(proxy)
             else:
+                logger.error(f"Invalid response structure: {response}")
                 handle_logout(proxy)
         else:
             account_info = np_session_info
